@@ -8,6 +8,18 @@
 <body>
     <h2>Upload Successful!</h2>
     <p>Your PDF has been uploaded successfully.</p>
-    <a href="/pdf_processing/upload/">Upload another file</a>
+
+    <!-- Display Extracted Text -->
+    <h3>Extracted Text:</h3>
+    {% if text %}
+    <div style="white-space: pre-line;">
+        {{ text }}
+    </div>
+    
+    {% else %}
+        <p>No text was extracted from this PDF.</p>
+    {% endif %}
+
+    <a href="{% url 'upload_pdf' %}">Upload another file</a>
 </body>
 </html>

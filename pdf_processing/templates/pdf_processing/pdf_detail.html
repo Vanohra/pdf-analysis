@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extracted Text</title>
+</head>
+<body>
+    <h2>Extracted Text from {{ pdf.title }}</h2>
+    <p><strong>Uploaded on:</strong> {{ pdf.uploaded_at }}</p>
+    <pre>{{ pdf.extracted_text }}</pre> <!-- Displays extracted text in a readable format -->
+
+    <a href="{% url 'upload_pdf' %}">Upload another PDF</a>
+</body>
+</html>
