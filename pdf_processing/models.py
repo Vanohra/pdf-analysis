@@ -1,4 +1,4 @@
-import openai  # Import OpenAI
+from openai import OpenAI  # Correct import for OpenAI's latest version
 import re
 import fitz  # PyMuPDF for text extraction
 import pytesseract  # Tesseract OCR for images
@@ -7,6 +7,8 @@ import camelot  # Extract tables from PDFs
 from django.db import models
 import json  # To store embeddings as JSON
 import os  # For environment variables
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 class UploadedPDF(models.Model):
     title = models.CharField(max_length=255)  # PDF title (name)
@@ -64,32 +66,72 @@ class UploadedPDF(models.Model):
         return cleaned_text  # Return cleaned extracted text
     
     def generate_embeddings(self):
-        """ Generate OpenAI embeddings for the extracted text """
         if not self.extracted_text:
             print("No extracted text, skipping embeddings...")
             return None  # No text to embed
 
-        # Load API key from environment variable
-        openai.api_key = os.getenv("OPENAI_API_KEY")
+        # ✅ Correct way to set the OpenAI API key
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
         try:
-            client = openai.OpenAI()  # ✅ Correct way to initialize OpenAI client
-            
             response = client.embeddings.create(
-                input=self.extracted_text,
-                model="text-embedding-ada-002"
+                model="text-embedding-ada-002",
+                input=self.extracted_text.strip()
             )
-            
-            # ✅ Correctly extract the embedding data
-            embedding_vector = response.data[0].embedding  # Correct method
-            
-            # Store the embeddings as JSON
+
+            # ✅ Extract the actual embedding vector correctly
+            embedding_vector = response.data[0].embedding  
+
+            # Store embeddings as JSON in the database
             self.embeddings = json.dumps(embedding_vector)
             self.save()
             print("✅ Embeddings Generated Successfully!")
 
-            return self.embeddings  # Return generated embeddings
+            return self.embeddings  
 
         except Exception as e:
             print("❌ Error generating embeddings:", e)
             return None
+
+    def search_relevant_text(self, query):
+    
+    
+        if not self.embeddings:
+            return "No relevant information found."  # No embeddings stored
+
+        # Split the text into paragraphs or sentences for better matching
+        text_chunks = self.extracted_text.split("\n\n")  # Split by paragraphs
+
+        # Convert stored embeddings back to numpy array
+        pdf_embedding = np.array(json.loads(self.embeddings)).reshape(1, -1)
+
+        # Generate embedding for the user query
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = client.embeddings.create(
+            model="text-embedding-ada-002",
+            input=query
+        )
+        query_embedding = np.array(response.data[0].embedding).reshape(1, -1)
+
+        best_chunk = None
+        highest_similarity = 0
+
+        # Compute similarity between query and each paragraph
+        for chunk in text_chunks:
+            chunk_embedding = client.embeddings.create(
+                model="text-embedding-ada-002",
+                input=chunk
+            ).data[0].embedding
+
+            chunk_embedding = np.array(chunk_embedding).reshape(1, -1)
+            similarity = cosine_similarity(query_embedding, chunk_embedding)[0][0]
+
+            if similarity > highest_similarity:
+                highest_similarity = similarity
+                best_chunk = chunk
+
+        # Return the most relevant chunk if similarity is above threshold
+        if highest_similarity > 0.6:  # Adjust threshold if needed
+            return best_chunk.strip()
+        
+        return "No relevant information found."

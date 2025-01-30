@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ask a Question</title>
+</head>
+<body>
+    <h2>Ask a Question About Your PDFs</h2>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <label for="question">Your Question:</label>
+        <input type="text" name="question" required>
+        <button type="submit">Ask</button>
+    </form>
+
+    <br>
+    <a href="{% url 'upload_pdf' %}">Upload a new PDF</a>
+</body>
+</html>

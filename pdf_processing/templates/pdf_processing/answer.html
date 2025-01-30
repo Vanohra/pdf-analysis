@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Answer</title>
+</head>
+<body>
+    <h2>Answer to Your Question</h2>
+
+    <p><strong>Question:</strong> {{ question }}</p>
+    <p><strong>Answer:</strong> {{ answer }}</p>
+
+    <br>
+    <a href="{% url 'ask_question' %}">Ask another question</a>
+</body>
+</html>
