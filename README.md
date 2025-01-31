@@ -5,25 +5,26 @@ AI-Powered PDF Processing Pipeline
     -Implement necessary models for storing processed text and embeddings.
 
   2. Extract Text from Complex PDFs
-  Challenge: Extracting text from PDFs containing images, tables, or non-standard layouts requires specialized processing techniques.
-
-
-  Tools Used:
-    PyMuPDF (fitz) – Extracts raw text and identifies embedded images/tables.
-    Tesseract OCR – Performs Optical Character Recognition (OCR) on images extracted from PDFs.
-    Camelot / Tabula – Parses tabular data into structured formats like CSV or JSON.
+    Challenge: Extracting text from PDFs containing images, tables, or non-standard layouts requires specialized processing techniques.
   
-  Extraction Pipeline:
-  -Extract Raw Text & Identify Embedded Elements:
-      Use PyMuPDF to extract textual content and detect embedded images or tables.  
-  -OCR Processing for Image-Based PDFs:
-      Pass detected images to Tesseract OCR for text recognition.
-  -Table Extraction & Structuring: 
-      using Camelot 
-  -Data Aggregation:
-    Merge extracted text, OCR-processed content, and structured tables into a unified text representation for further analysis.
-
   
+    Tools Used:
+    
+      PyMuPDF (fitz) – Extracts raw text and identifies embedded images/tables.
+      Tesseract OCR – Performs Optical Character Recognition (OCR) on images extracted from PDFs.
+      Camelot / Tabula – Parses tabular data into structured formats like CSV or JSON.
+    
+    Extraction Pipeline:
+    -Extract Raw Text & Identify Embedded Elements:
+        Use PyMuPDF to extract textual content and detect embedded images or tables.  
+    -OCR Processing for Image-Based PDFs:
+        Pass detected images to Tesseract OCR for text recognition.
+    -Table Extraction & Structuring: 
+        using Camelot 
+    -Data Aggregation:
+      Merge extracted text, OCR-processed content, and structured tables into a unified text representation for further analysis.
+  
+    
 3. Preprocess and Clean Extracted Text
   -Normalize text (remove special characters, redundant spaces, and artifacts).
   -Convert tabular data into a readable text format or structured JSON.
