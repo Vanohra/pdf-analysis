@@ -45,14 +45,28 @@ def ask_question(request):
         question = request.POST.get("question")  # Get user input
         pdfs = UploadedPDF.objects.all()  # Get all PDFs
 
-        best_answer = "No relevant answer found."
+        best_chunks = []
+
 
         # Search for relevant content in the PDFs
         for pdf in pdfs:
             answer = pdf.search_relevant_text(question)
-            if answer != "No relevant information found.":
-                best_answer = answer
-                break  # Stop after finding the first relevant document
+            if answer and answer != "No relevant information found.":
+                best_chunks.append(answer)
+
+        # If we found good text, ask GPT-4 to summarize
+        if best_chunks:
+            context = " ".join(best_chunks)
+            response = client.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[
+                    {"role": "system", "content": "Summarize this answer based on relevant PDF content."},
+                    {"role": "user", "content": f"Question: {question}\n\nRelevant Text: {context}\n\nAnswer concisely:"}
+                ]
+            )
+            best_answer = response.choices[0].message.content
+        else:
+            best_answer = "No relevant information found."
 
         return render(request, "pdf_processing/answer.html", {"question": question, "answer": best_answer})
 

@@ -65,6 +65,12 @@ class UploadedPDF(models.Model):
 
         return cleaned_text  # Return cleaned extracted text
     
+    def chunk_text(self, text, chunk_size=200):
+        """Splits text into smaller chunks for better retrieval."""
+        words = text.split()
+        chunks = [' '.join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+        return chunks
+    
     def generate_embeddings(self):
         if not self.extracted_text:
             print("No extracted text, skipping embeddings...")
@@ -72,66 +78,76 @@ class UploadedPDF(models.Model):
 
         # ✅ Correct way to set the OpenAI API key
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        chunks = self.chunk_text(self.extracted_text)  # Break text into small parts
+        embeddings_list = []
 
         try:
-            response = client.embeddings.create(
-                model="text-embedding-ada-002",
-                input=self.extracted_text.strip()
-            )
+            for chunk in chunks:
+                response = client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=chunk
+                )
+                embeddings_list.append({
+                    "text": chunk,
+                    "embedding": response.data[0].embedding
+                })
 
-            # ✅ Extract the actual embedding vector correctly
-            embedding_vector = response.data[0].embedding  
-
-            # Store embeddings as JSON in the database
-            self.embeddings = json.dumps(embedding_vector)
+            # Store as JSON
+            self.embeddings = json.dumps(embeddings_list)
             self.save()
             print("✅ Embeddings Generated Successfully!")
 
-            return self.embeddings  
-
         except Exception as e:
             print("❌ Error generating embeddings:", e)
-            return None
+
+
 
     def search_relevant_text(self, query):
-    
-    
+        """Finds the most relevant text chunks for a given query using stored embeddings."""
+        
         if not self.embeddings:
             return "No relevant information found."  # No embeddings stored
 
-        # Split the text into paragraphs or sentences for better matching
-        text_chunks = self.extracted_text.split("\n\n")  # Split by paragraphs
+        try:
+            # Load stored embeddings
+            pdf_embeddings = json.loads(self.embeddings)
 
-        # Convert stored embeddings back to numpy array
-        pdf_embedding = np.array(json.loads(self.embeddings)).reshape(1, -1)
+            if not isinstance(pdf_embeddings, list):  # Ensure it's a list
+                return "Error: Invalid embedding format."
 
-        # Generate embedding for the user query
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.embeddings.create(
-            model="text-embedding-ada-002",
-            input=query
-        )
-        query_embedding = np.array(response.data[0].embedding).reshape(1, -1)
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        best_chunk = None
-        highest_similarity = 0
-
-        # Compute similarity between query and each paragraph
-        for chunk in text_chunks:
-            chunk_embedding = client.embeddings.create(
+            # Generate query embedding
+            response = client.embeddings.create(
                 model="text-embedding-ada-002",
-                input=chunk
-            ).data[0].embedding
+                input=query
+            )
+            query_embedding = np.array(response.data[0].embedding).reshape(1, -1)
 
-            chunk_embedding = np.array(chunk_embedding).reshape(1, -1)
-            similarity = cosine_similarity(query_embedding, chunk_embedding)[0][0]
+            best_chunks = []
+            similarities = []
 
-            if similarity > highest_similarity:
-                highest_similarity = similarity
-                best_chunk = chunk
+            # Loop through stored embeddings
+            for embedding_dict in pdf_embeddings:
+                chunk_text = embedding_dict["text"]
+                chunk_embedding = np.array(embedding_dict["embedding"]).reshape(1, -1)
 
-        # Return the most relevant chunk if similarity is above threshold
-        if highest_similarity > 0.6:  # Adjust threshold if needed
-            return best_chunk.strip()
-        
-        return "No relevant information found."
+                # Compute similarity
+                similarity = cosine_similarity(query_embedding, chunk_embedding)[0][0]
+
+                if similarity > 0.5:  # Lowered threshold to get more context
+                    best_chunks.append(chunk_text)
+                    similarities.append(similarity)
+
+            # Sort best matches
+            top_chunks = [text for _, text in sorted(zip(similarities, best_chunks), reverse=True)[:3]]
+
+            if not top_chunks:
+                return "No relevant information found."
+
+            return " ".join(top_chunks)  # Return multiple chunks for context
+
+        except Exception as e:
+            print(f"❌ Error in search_relevant_text: {e}")
+            return "Error processing query."
+    
